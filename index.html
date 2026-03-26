@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>苏教版初中数学复习工具</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="description" content="苏教版初中数学课外复习辅助工具 - 考点速查、公式速记、刷题巩固、错题复盘">
+  
+  <!-- PWA 支持 -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4A90D9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="数学复习">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<nav class="navbar">
+  <div class="navbar-inner">
+    <!-- 汉堡菜单按钮 -->
+    <button class="menu-toggle" onclick="app.toggleMobileMenu()" aria-label="菜单">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+    
+    <div class="navbar-brand" onclick="app.navigate('home')">
+      苏教版初中数学复习
+    </div>
+    <div class="nav-links">
+      <div class="nav-link active" data-page="home" onclick="app.navigate('home')">🏠 首页</div>
+      <div class="nav-link" data-page="points" onclick="app.navigate('points')">📚 考点速查</div>
+      <div class="nav-link" data-page="formulas" onclick="app.navigate('formulas')">📐 公式速记</div>
+      <div class="nav-link" data-page="quiz" onclick="app.navigate('quiz')">✏️ 复习刷题</div>
+      <div class="nav-link" data-page="mistakes" onclick="app.navigate('mistakes')">📝 错题本</div>
+      <div class="nav-link" data-page="progress" onclick="app.navigate('progress')">📊 学习进度</div>
+      <div class="nav-link" data-page="about" onclick="app.navigate('about')">ℹ️ 关于</div>
+    </div>
+  </div>
+  
+  <!-- 移动端侧边菜单 -->
+  <div class="mobile-menu" id="mobileMenu">
+    <div class="nav-link" onclick="app.navigate('home'); app.toggleMobileMenu()">🏠 首页</div>
+    <div class="nav-link" onclick="app.navigate('points'); app.toggleMobileMenu()">📚 考点速查</div>
+    <div class="nav-link" onclick="app.navigate('formulas'); app.toggleMobileMenu()">📐 公式速记</div>
+    <div class="nav-link" onclick="app.navigate('quiz'); app.toggleMobileMenu()">✏️ 复习刷题</div>
+    <div class="nav-link" onclick="app.navigate('mistakes'); app.toggleMobileMenu()">📝 错题本</div>
+    <div class="nav-link" onclick="app.navigate('progress'); app.toggleMobileMenu()">📊 学习进度</div>
+    <div class="nav-link" onclick="app.navigate('about'); app.toggleMobileMenu()">ℹ️ 关于</div>
+  </div>
+</nav>
+
+<!-- 主内容区 -->
+<main class="main-container" id="main-content">
+  <!-- 动态渲染 -->
+</main>
+
+<!-- 回到顶部按钮 -->
+<button class="back-to-top" id="backToTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- 数据脚本 -->
+<script src="js/data.js"></script>
+<script src="js/quiz-data.js"></script>
+
+<!-- 主逻辑 -->
+<script>
+// ============================================================
+// 苏教版初中数学复习工具 - 主逻辑
+// ============================================================
+
+const app = {
+  // 当前状态
+  state: {
+    currentPage: 'home',
+    currentGrade: null,
+    currentSemester: null,
+    currentChapter: null,
+    selectedFormulaCat: null,
+    quiz: {
+      questions: [],
+      currentIndex: 0,
+      answers: [],
+      userAnswers: [],
+      startTime: null,
+      endTime: null,
+      timer: null,
+      timeSpent: 0,
+      mode: 'random', // random, chapter, semester, commonMistake
+      difficulty: null // null = all, 1, 2, 3
+    },
+    mistakeBook: JSON.parse(localStorage.getItem('sujiaoban_mistakes') || '[]'),
+    progress: JSON.parse(localStorage.getItem('sujiaoban_progress') || JSON.stringify(PROGRESS_TEMPLATE))
+  },
+
+  // 初始化
+  init() {
+    this.renderHome();
+    this.setupScrollListener();
+    this.checkDailyStreak();
+    this.checkFirstVisit();
+    console.log('✅ 苏教版数学复习工具 V3.0 已启动');
+  },
+
+  // 检查首次访问
+  checkFirstVisit() {
+    const hasVisited = localStorage.getItem('sujiaoban_has_visited');
+    if (!hasVisited) {
+      // 首次访问，显示新手引导
+      setTimeout(() => this.showWelcomeGuide(), 500);
+      localStorage.setItem('sujiaoban_has_visited', 'true');
+    }
+  },
+
+  // 显示新手引导
+  showWelcomeGuide() {
+    const overlay = document.createElement('div');
+    overlay.className = 'welcome-overlay';
+    overlay.innerHTML = `
+      <div class="welcome-modal fade-in">
+        <div class="welcome-header">
+          <div class="welcome-icon">🎉</div>
+          <h2>欢迎来到苏教版初中数学复习工具！</h2>
+        </div>
+        <div class="welcome-content">
+          <div class="welcome-feature">
+            <div class="welcome-feature-icon">📚</div>
+            <div>
+              <strong>10 合 1 智能复习</strong>
+              <p>考点、公式、刷题、错题、几何、自检等 10 大功能</p>
+            </div>
+          </div>
+          <div class="welcome-feature">
+            <div class="welcome-feature-icon">🎯</div>
+            <div>
+              <strong>智能推荐</strong>
+              <p>薄弱点分析 + 举一反三，针对性突破</p>
+            </div>
+          </div>
+          <div class="welcome-feature">
+            <div class="welcome-feature-icon">🔒</div>
+            <div>
+              <strong>数据安全</strong>
+              <p>本地存储，支持导出备份，隐私无忧</p>
+            </div>
+          </div>
+        </div>
+        <div class="welcome-actions">
+          <button class="btn btn-primary btn-lg" onclick="this.closest('.welcome-overlay').remove()">开始学习 🚀</button>
+        </div>
+        <div class="welcome-tip">提示：数据保存在本地，建议定期导出备份</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  },
+
+  // 保存进度
+  saveProgress() {
+    localStorage.setItem('sujiaoban_progress', JSON.stringify(this.state.progress));
+  },
+
+  // 检查每日连续练习
+  checkDailyStreak() {
+    const today = new Date().toDateString();
+    const lastDate = this.state.progress.stats.lastPracticeDate;
+    
+    if (lastDate) {
+      const last = new Date(lastDate);
+      const diff = Math.floor((new Date(today) - last) / (1000 * 60 * 60 * 24));
+      if (diff > 1) {
+        // 中断了
+        this.state.progress.stats.streak = 0;
+      }
+    }
+    this.saveProgress();
+  },
+
+  // 更新练习统计
+  updatePracticeStats(correct, total, timeSpent) {
+    const p = this.state.progress;
+    const today = new Date().toDateString();
+    
+    p.stats.totalPractices++;
+    p.stats.totalTimeSpent += timeSpent;
+    p.stats.totalQuestionsAnswered += total;
+    
+    if (today !== p.stats.lastPracticeDate) {
+      p.stats.streak++;
+      p.stats.lastPracticeDate = today;
+    }
+    
+    const score = Math.round(correct / total * 100);
+    if (score > p.stats.bestScore) {
+      p.stats.bestScore = score;
+    }
+    
+    // 检查成就
+    this.checkAchievements();
+    this.saveProgress();
+  },
+
+  // 更新章节进度
+  updateChapterProgress(chapterId, correct, total) {
+    const p = this.state.progress;
+    if (!p.chapters[chapterId]) {
+      p.chapters[chapterId] = { totalQuestions: 0, correctQuestions: 0, lastPractice: Date.now() };
+    }
+    p.chapters[chapterId].totalQuestions += total;
+    p.chapters[chapterId].correctQuestions += correct;
+    p.chapters[chapterId].lastPractice = Date.now();
+    this.saveProgress();
+  },
+
+  // 检查成就
+  checkAchievements() {
+    const p = this.state.progress;
+    ACHIEVEMENTS.forEach(ach => {
+      if (!p.achievements.includes(ach.id) && ach.condition(p)) {
+        p.achievements.push(ach.id);
+        this.showAchievement(ach);
+      }
+    });
+    this.saveProgress();
+  },
+
+  // 显示成就通知
+  showAchievement(ach) {
+    // 创建通知元素
+    const notif = document.createElement('div');
+    notif.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(102,126,234,0.4);
+      z-index: 1000;
+      animation: slideIn 0.5s ease;
+      max-width: 300px;
+    `;
+    notif.innerHTML = `
+      <div style="font-size:24px;margin-bottom:4px">${ach.icon}</div>
+      <div style="font-weight:700;font-size:16px">🏆 成就解锁！</div>
+      <div style="font-size:14px;opacity:0.9">${ach.name}</div>
+      <div style="font-size:12px;opacity:0.7;margin-top:4px">${ach.desc}</div>
+    `;
+    document.body.appendChild(notif);
+    
+    // 3 秒后消失
+    setTimeout(() => {
+      notif.style.animation = 'slideOut 0.5s ease';
+      setTimeout(() => notif.remove(), 500);
+    }, 3000);
+  },
+
+  // 导航
+  navigate(page, params = {}) {
+    this.state.currentPage = page;
+    this.updateNavActive(page);
+    
+    // 切换页面时关闭移动菜单
+    if (window.innerWidth <= 640) {
+      const menu = document.getElementById('mobileMenu');
+      const toggle = document.querySelector('.menu-toggle');
+      menu.classList.remove('show');
+      toggle.classList.remove('active');
+    }
+
+    switch(page) {
+      case 'home':
+        this.renderHome();
+        break;
+      case 'points':
+        this.renderPoints(params);
+        break;
+      case 'formulas':
+        this.renderFormulas(params);
+        break;
+      case 'quiz':
+        this.renderQuiz(params);
+        break;
+      case 'mistakes':
+        this.renderMistakes(params);
+        break;
+      case 'progress':
+        this.renderProgress(params);
+        break;
+      case 'about':
+        this.renderAbout(params);
+        break;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  },
+
+  // 更新导航激活状态
+  updateNavActive(page) {
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.classList.toggle('active', link.dataset.page === page);
+    });
+  },
+
+  // 切换移动端菜单
+  toggleMobileMenu() {
+    const menu = document.getElementById('mobileMenu');
+    const toggle = document.querySelector('.menu-toggle');
+    menu.classList.toggle('show');
+    toggle.classList.toggle('active');
+  },
+
+  // ============================================================
+  // 首页
+  // ============================================================
+  renderHome() {
+    const container = document.getElementById('main-content');
+    const mistakeCount = this.state.mistakeBook.length;
+
+    container.innerHTML = `
+      <div class="home-hero fade-in">
+        <h1>苏教版初中数学复习工具</h1>
+        <p>10 合 1 智能复习 · 考点 · 公式 · 刷题 · 错题 · 几何 · 自检</p>
+      </div>
+
+      <!-- 年级选择 -->
+      <div class="grade-selector fade-in">
+        <button class="grade-btn" onclick="app.selectGrade('grade7')">七年级</button>
+        <button class="grade-btn" onclick="app.selectGrade('grade8')">八年级</button>
+        <button class="grade-btn" onclick="app.selectGrade('grade9')">九年级</button>
+      </div>
+
+      <!-- 学期选择（选择年级后显示） -->
+      <div id="semesterSelector" class="semester-selector fade-in hidden">
+        <button class="semester-btn" onclick="app.selectSemester('1')">⬆️ 上学期</button>
+        <button class="semester-btn" onclick="app.selectSemester('2')">⬇️ 下学期</button>
+      </div>
+
+      <!-- 快捷入口 -->
+      <div class="quick-entries fade-in">
+        <div class="quick-entry" onclick="app.navigate('points')">
+          <div class="icon">📚</div>
+          <div class="title">考点速查</div>
+          <div class="desc">按章节查看考点、易错点</div>
+        </div>
+        <div class="quick-entry" onclick="app.navigate('formulas')">
+          <div class="icon">📐</div>
+          <div class="title">公式速记</div>
+          <div class="desc">核心公式 + 口诀 + 用法</div>
+        </div>
+        <div class="quick-entry" onclick="app.startRandomQuiz()">
+          <div class="icon">✏️</div>
+          <div class="title">随机刷题</div>
+          <div class="desc">随机抽取题目练习</div>
+        </div>
+        <div class="quick-entry" onclick="app.startCommonMistakeQuiz()">
+          <div class="icon">⚠️</div>
+          <div class="title">易错题专练</div>
+          <div class="desc">高频易错题专项突破</div>
+        </div>
+        <div class="quick-entry" onclick="app.navigate('mistakes')">
+          <div class="icon">📝</div>
+          <div class="title">错题本</div>
+          <div class="desc">${mistakeCount > 0 ? mistakeCount + '道错题' : '暂无错题'}</div>
+        </div>
+        <div class="quick-entry" onclick="app.navigate('progress')">
+          <div class="icon">📊</div>
+          <div class="title">学习进度</div>
+          <div class="desc">查看掌握程度和成就</div>
+        </div>
+      </div>
+
+      <!-- 统计栏 -->
+      <div class="stats-bar fade-in">
+        <div class="stat-card">
+          <div class="number">${this.state.mistakeBook.length}</div>
+          <div class="label">错题总数</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${QUIZ_DATA.questions.length}</div>
+          <div class="label">题库题目</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${this.state.progress.stats.totalPractices}</div>
+          <div class="label">已练习次数</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">${this.state.progress.achievements.length}/${ACHIEVEMENTS.length}</div>
+          <div class="label">解锁成就</div>
+        </div>
+      </div>
+
+      <!-- 使用说明 -->
+      <div class="empty-state fade-in mt-16">
+        <div class="empty-icon">💡</div>
+        <p>纯课外复习工具 · 无登录无广告 · 打开即用<br>
+        错题自动保存在本地，清除浏览器缓存会丢失</p>
+      </div>
+    `;
+  },
+
+  // 选择年级
+  selectGrade(gradeId) {
+    this.state.currentGrade = gradeId;
+    this.state.currentSemester = null; // 重置学期选择
+    document.querySelectorAll('.grade-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.onclick.toString().includes(gradeId));
+    });
+    // 显示学期选择器
+    document.getElementById('semesterSelector').classList.remove('hidden');
+    // 滚动到学期选择器
+    document.getElementById('semesterSelector').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  },
+
+  // 选择学期
+  selectSemester(semesterNum) {
+    const gradeId = this.state.currentGrade;
+    if (!gradeId) return;
+
+    this.state.currentSemester = semesterNum;
+    document.querySelectorAll('.semester-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.onclick.toString().includes(`'${semesterNum}'`));
+    });
+    // 进入对应学期的章节列表
+    this.navigate('points', { gradeId, semesterNum });
+  },
+
+  // ============================================================
+  // 考点速查
+  // ============================================================
+  renderPoints(params = {}) {
+    const container = document.getElementById('main-content');
+    let html = '';
+
+    // 如果没有选择年级，显示年级选择
+    if (!params.gradeId && !this.state.currentGrade) {
+      html = `
+        <div class="breadcrumb fade-in">
+          <span onclick="app.navigate('home')">首页</span>
+          <span class="sep">/</span>
+          <span class="current">考点速查</span>
+        </div>
+        <div class="empty-state fade-in">
+          <div class="empty-icon">📚</div>
+          <p>请先在首页选择一个年级</p>
+          <button class="btn btn-primary mt-16" onclick="app.navigate('home')">返回首页</button>
+        </div>
+      `;
+    } else {
+      const gradeId = params.gradeId || this.state.currentGrade;
+      const semesterNum = params.semesterNum || this.state.currentSemester;
+      const grade = TEXTBOOK_DATA.grades.find(g => g.id === gradeId);
+
+      if (grade) {
+        // 如果未选择学期，显示学期选择
+        if (!semesterNum) {
+          html = `
+            <div class="breadcrumb fade-in">
+              <span onclick="app.navigate('home')">首页</span>
+              <span class="sep">/</span>
+              <span class="current">${grade.name}</span>
+            </div>
+            <div class="empty-state fade-in">
+              <div class="empty-icon">📅</div>
+              <p>请选择学期</p>
+              <div class="semester-selector" style="margin-top:16px">
+                <button class="semester-btn" onclick="app.selectSemester('1')">⬆️ 上学期</button>
+                <button class="semester-btn" onclick="app.selectSemester('2')">⬇️ 下学期</button>
+              </div>
+            </div>
+          `;
+          container.innerHTML = html;
+          return;
+        }
+
+        // 找到对应学期
+        const semester = grade.semesters.find(s => s.id.endsWith(`-${semesterNum}`));
+        if (!semester) {
+          html = `
+            <div class="breadcrumb fade-in">
+              <span onclick="app.navigate('home')">首页</span>
+              <span class="sep">/</span>
+              <span class="current">${grade.name}</span>
+            </div>
+            <div class="empty-state fade-in">
+              <div class="empty-icon">😅</div>
+              <p>该年级暂无此学期数据</p>
+              <button class="btn btn-outline mt-16" onclick="app.navigate('points', {gradeId:'${gradeId}'})">返回选择学期</button>
+            </div>
+          `;
+        } else {
+          let chaptersHtml = '';
+          semester.chapters.forEach(chap => {
+            chaptersHtml += `
+              <div class="chapter-card fade-in" onclick="app.viewChapter('${chap.id}')">
+                <div class="chapter-name">${chap.name}</div>
+                <div class="chapter-summary">${chap.summary}</div>
+                <div class="chapter-meta">
+                  <span>${chap.examPoints.length}个考点</span>
+                  <span>${semester.name}</span>
+                </div>
+              </div>
+            `;
+          });
+
+          const semesterName = semesterNum === '1' ? '上学期' : '下学期';
+          html = `
+            <div class="breadcrumb fade-in">
+              <span onclick="app.navigate('home')">首页</span>
+              <span class="sep">/</span>
+              <span onclick="app.navigate('points')">${grade.name}</span>
+              <span class="sep">/</span>
+              <span class="current">${semesterName}</span>
+            </div>
+            <h2 class="mb-16">${grade.name}·${semesterName}</h2>
+            <div class="chapter-list">${chaptersHtml}</div>
+            <div class="quiz-actions mt-16">
+              <button class="btn btn-outline" onclick="app.navigate('points', {gradeId:'${gradeId}'})">返回选择学期</button>
+              <button class="btn btn-primary" onclick="app.startSemesterQuiz('${semester.id}')">练习本学期题目</button>
+            </div>
+          `;
+        }
+      }
+    }
+
+    container.innerHTML = html;
+  },
+
+  // 查看章节详情
+  viewChapter(chapterId) {
+    // 找到章节
+    let chapter = null;
+    let semester = null;
+    let grade = null;
+
+    for (const g of TEXTBOOK_DATA.grades) {
+      for (const s of g.semesters) {
+        const c = s.chapters.find(ch => ch.id === chapterId);
+        if (c) {
+          chapter = c;
+          semester = s;
+          grade = g;
+          break;
+        }
+      }
+      if (chapter) break;
+    }
+
+    if (!chapter) return;
+
+    this.state.currentChapter = chapterId;
+
+    const container = document.getElementById('main-content');
+    let pointsHtml = '';
+
+    chapter.examPoints.forEach((ep, idx) => {
+      const stars = '★'.repeat(ep.star) + '☆'.repeat(5 - ep.star);
+      const freqClass = ep.freq === '必考' ? 'tag-required' : ep.freq === '常考' ? 'tag-frequent' : 'tag-know';
+
+      let mistakesHtml = '';
+      if (ep.mistakes && ep.mistakes.length > 0) {
+        mistakesHtml = `
+          <div class="ep-mistakes">
+            ${ep.mistakes.map(m => `<div class="mistake-item">${m}</div>`).join('')}
+          </div>
+        `;
+      }
+
+      pointsHtml += `
+        <div class="exam-point-card fade-in">
+          <div class="ep-header">
+            <div class="ep-name">${idx + 1}. ${ep.name}</div>
+            <div class="ep-tags">
+              <span class="tag ${freqClass}">${ep.freq}</span>
+              <span class="star-rating">${stars}</span>
+            </div>
+          </div>
+          <div class="ep-section">
+            <div class="ep-section-title">📖 考点内容</div>
+            <div class="ep-section-content">${ep.content}</div>
+          </div>
+          <div class="ep-section">
+            <div class="ep-section-title">💡 关键提示</div>
+            <div class="ep-section-content">${ep.keyTip}</div>
+          </div>
+          ${mistakesHtml ? `
+            <div class="ep-section">
+              <div class="ep-section-title">⚠️ 常见错误</div>
+              ${mistakesHtml}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+
+    container.innerHTML = `
+      <div class="breadcrumb fade-in">
+        <span onclick="app.navigate('home')">首页</span>
+        <span class="sep">/</span>
+        <span onclick="app.navigate('points', {gradeId:'${grade.id}'})">${grade.name}</span>
+        <span class="sep">/</span>
+        <span class="current">${chapter.name}</span>
+      </div>
+      <h2 class="mb-16">${chapter.name}</h2>
+      <p class="mb-16" style="color:var(--text-secondary)">${chapter.summary}</p>
+      ${pointsHtml}
+      <div class="quiz-actions">
+        <button class="btn btn-outline" onclick="app.navigate('points')">返回章节列表</button>
+        <button class="btn btn-primary" onclick="app.startChapterQuiz('${chapterId}')">练习本章题目</button>
+      </div>
+    `;
+  },
+
+  // ============================================================
+  // 公式速记
+  // ============================================================
+  renderFormulas(params = {}) {
+    const container = document.getElementById('main-content');
+
+    // 分类按钮
+    const catBtns = FORMULA_DATA.categories.map((cat, idx) => `
+      <div class="formula-cat-btn ${idx === 0 ? 'active' : ''}" 
+           onclick="app.filterFormulas('${cat.id}', this)">
+        <span class="cat-icon">${cat.icon}</span>
+        ${cat.name}
+      </div>
+    `).join('');
+
+    // 默认显示第一个分类
+    const firstCat = FORMULA_DATA.categories[0].id;
+    this.state.selectedFormulaCat = firstCat;
+
+    container.innerHTML = `
+      <div class="breadcrumb fade-in">
+        <span onclick="app.navigate('home')">首页</span>
+        <span class="sep">/</span>
+        <span class="current">公式速记</span>
+      </div>
+
+      <!-- 搜索框 -->
+      <div class="search-box fade-in">
+        <input type="text" id="formulaSearch" placeholder="搜索公式名称或关键词..." 
+               onkeyup="app.searchFormulas(event)">
+        <button onclick="app.searchFormulas()">🔍 搜索</button>
+      </div>
+
+      <!-- 分类 -->
+      <div class="formula-categories fade-in">
+        ${catBtns}
+      </div>
+
+      <!-- 公式列表 -->
+      <div id="formulaList">
+        ${this.renderFormulaCategory(firstCat)}
+      </div>
+    `;
+  },
+
+  // 筛选公式分类
+  filterFormulas(catId, btn) {
+    this.state.selectedFormulaCat = catId;
+    document.querySelectorAll('.formula-cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('formulaList').innerHTML = this.renderFormulaCategory(catId);
+  },
+
+  // 渲染公式分类
+  renderFormulaCategory(catId) {
+    const cat = FORMULA_DATA.categories.find(c => c.id === catId);
+    if (!cat) return '';
+
+    return cat.formulas.map(f => `
+      <div class="formula-card fade-in">
+        <div class="formula-name">${f.name}</div>
+        <div class="formula-text">${Array.isArray(f.formula) ? f.formula.join('\n') : f.formula}</div>
+        ${f.mnemonic ? `<div class="formula-mnemonic">💭 口诀：${f.mnemonic}</div>` : ''}
+        ${f.usage ? `<div class="formula-usage">📌 用法：${f.usage}</div>` : ''}
+      </div>
+    `).join('');
+  },
+
+  // 搜索公式
+  searchFormulas(event) {
+    if (event && event.key !== 'Enter') return;
+
+    const keyword = document.getElementById('formulaSearch').value.trim().toLowerCase();
+    if (!keyword) {
+      // 清空搜索，显示当前分类
+      document.getElementById('formulaList').innerHTML = this.renderFormulaCategory(this.state.selectedFormulaCat);
+      return;
+    }
+
+    // 搜索所有公式
+    const results = [];
+    FORMULA_DATA.categories.forEach(cat => {
+      cat.formulas.forEach(f => {
+        const searchText = `${f.name} ${f.mnemonic || ''} ${f.usage || ''}`.toLowerCase();
+        if (searchText.includes(keyword)) {
+          results.push({ ...f, categoryName: cat.name, categoryIcon: cat.icon });
+        }
+      });
+    });
+
+    if (results.length === 0) {
+      document.getElementById('formulaList').innerHTML = `
+        <div class="empty-state fade-in">
+          <div class="empty-icon">🔍</div>
+          <p>没有找到匹配的公式</p>
+        </div>
+      `;
+    } else {
+      document.getElementById('formulaList').innerHTML = results.map(f => `
+        <div class="formula-card fade-in">
+          <div class="formula-name">${f.categoryIcon} ${f.categoryName} · ${f.name}</div>
+          <div class="formula-text">${Array.isArray(f.formula) ? f.formula.join('\n') : f.formula}</div>
+          ${f.mnemonic ? `<div class="formula-mnemonic">💭 口诀：${f.mnemonic}</div>` : ''}
+          ${f.usage ? `<div class="formula-usage">📌 用法：${f.usage}</div>` : ''}
+        </div>
+      `).join('');
+    }
+  },
+
+  // ============================================================
+  // 刷题模块
+  // ============================================================
+  renderQuiz(params = {}) {
+    const container = document.getElementById('main-content');
+
+    if (params.chapterId) {
+      // 章节练习
+      this.startChapterQuiz(params.chapterId);
+    } else if (this.state.quiz.questions.length > 0) {
+      // 继续答题
+      this.renderQuizQuestion();
+    } else {
+      // 题库选择
+      container.innerHTML = `
+        <div class="breadcrumb fade-in">
+          <span onclick="app.navigate('home')">首页</span>
+          <span class="sep">/</span>
+          <span class="current">复习刷题</span>
+        </div>
+        <div class="empty-state fade-in">
+          <div class="empty-icon">✏️</div>
+          <p>选择一个练习方式</p>
+          <div class="quiz-actions" style="justify-content:center;margin-top:16px">
+            <button class="btn btn-primary" onclick="app.startRandomQuiz()">🎲 随机练习</button>
+            <button class="btn btn-outline" onclick="app.navigate('home')">返回首页选章节</button>
+          </div>
+        </div>
+      `;
+    }
+  },
+
+  // 开始随机练习
+  startRandomQuiz() {
+    const questions = [...QUIZ_DATA.questions]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 10); // 随机10题
+    this.initQuiz(questions, '随机练习');
+  },
+
+  // 开始学期练习
+  startSemesterQuiz(semesterId) {
+    // 找到该学期所有章节 ID
+    const chapterIds = new Set();
+    for (const g of TEXTBOOK_DATA.grades) {
+      for (const s of g.semesters) {
+        if (s.id === semesterId) {
+          s.chapters.forEach(c => chapterIds.add(c.id));
+        }
+      }
+    }
+    // 筛选该学期的题目
+    const questions = QUIZ_DATA.questions.filter(q => chapterIds.has(q.chapterId));
+    if (questions.length === 0) {
+      alert('本学期暂无题目，快去其他学期练习吧！');
+      return;
+    }
+    this.initQuiz(questions, '学期练习');
+  },
+
+  // 开始章节练习
+  startChapterQuiz(chapterId) {
+    const questions = QUIZ_DATA.questions.filter(q => q.chapterId === chapterId);
+    if (questions.length === 0) {
+      alert('本章暂无题目，快去其他章节练习吧！');
+      return;
+    }
+    this.initQuiz(questions, '章节练习');
+  },
+
+  // 初始化答题
+  initQuiz(questions, mode, quizType = 'random') {
+    this.state.quiz = {
+      questions,
+      currentIndex: 0,
+      answers: [],
+      userAnswers: [],
+      startTime: Date.now(),
+      endTime: null,
+      mode,
+      quizType,
+      timer: null,
+      timeSpent: 0
+    };
+    this.renderQuizQuestion();
+    this.startQuizTimer();
+  },
+
+  // 渲染题目
+  renderQuizQuestion() {
+    const { questions, currentIndex, timeSpent, mode } = this.state.quiz;
+    const container = document.getElementById('main-content');
+
+    if (currentIndex >= questions.length) {
+      this.finishQuiz();
+      return;
+    }
+
+    const q = questions[currentIndex];
+    const progress = ((currentIndex) / questions.length * 100).toFixed(0);
+    const mins = Math.floor(timeSpent / 60);
+    const secs = timeSpent % 60;
+    const timerDisplay = `⏱️ ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+
+    // 难度标签
+    const diffLabels = { 1: '基础', 2: '提升', 3: '挑战' };
+    const diffClass = { 1: 'tag-success', 2: 'tag-warning', 3: 'tag-danger' };
+
+    // 模式标签
+    const modeLabels = {
+      'random': '随机练习',
+      'chapter': '章节练习',
+      'semester': '学期练习',
+      'commonMistake': '易错题专练',
+      'review': '错题重做',
+      'weakpoint': '薄弱点突破',
+      'knowledge': '知识点专项',
+      'difficulty': '难度练习'
+    };
+
+    container.innerHTML = `
+      <div class="quiz-header fade-in">
+        <div>
+          <div class="quiz-mode-badge">${modeLabels[mode] || '练习'}</div>
+          <div class="quiz-progress">
+            第 <span class="current">${currentIndex + 1}</span> / ${questions.length} 题
+            <span class="quiz-timer" id="quizTimer">${timerDisplay}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          ${q.difficulty ? `<span class="tag ${diffClass[q.difficulty]}">${diffLabels[q.difficulty]}</span>` : ''}
+          ${q.isCommonMistake ? '<span class="tag tag-danger">⚠️ 易错</span>' : ''}
+          ${q.knowledgePoint ? `<span class="knowledge-tag">${q.knowledgePoint}</span>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="app.finishQuiz()">⏭ 交卷</button>
+        </div>
+      </div>
+
+      <div class="quiz-card fade-in">
+        <div class="question-text">${q.question}</div>
+        <div class="quiz-options">
+          ${q.options.map((opt, idx) => `
+            <div class="quiz-option" data-idx="${idx}" onclick="app.selectOption(${idx})">${opt}</div>
+          `).join('')}
+        </div>
+        <div class="quiz-analysis" id="quizAnalysis">
+          <div class="analysis-title">📖 答案解析</div>
+          <div class="analysis-content">${q.analysis}</div>
+          ${q.mistakeRate ? `<div class="analysis-mistake-rate">错误率：${Math.round(q.mistakeRate*100)}% 的学生做错此题</div>` : ''}
+        </div>
+        <div class="quiz-actions" id="quizActions">
+          <button class="btn btn-primary" id="nextBtn" onclick="app.nextQuestion()" disabled>下一题 →</button>
+        </div>
+      </div>
+    `;
+  },
+
+  // 选择选项
+  selectOption(idx) {
+    const { currentIndex, userAnswers } = this.state.quiz;
+    const q = this.state.quiz.questions[currentIndex];
+
+    // 如果已经答过，不允许修改
+    if (userAnswers[currentIndex] !== undefined) return;
+
+    // 记录答案
+    this.state.quiz.userAnswers[currentIndex] = idx;
+
+    // 更新 UI
+    document.querySelectorAll('.quiz-option').forEach((opt, i) => {
+      opt.classList.add('disabled');
+      if (i === idx) opt.classList.add('selected');
+      if (String.fromCharCode(65 + i) === q.answer) {
+        opt.classList.add('show-correct');
+      }
+    });
+
+    // 判断对错
+    const selectedAnswer = String.fromCharCode(65 + idx);
+    const isCorrect = selectedAnswer === q.answer;
+
+    // 显示解析
+    document.getElementById('quizAnalysis').classList.add('show');
+
+    // 启用下一题按钮
+    const nextBtn = document.getElementById('nextBtn');
+    nextBtn.disabled = false;
+    nextBtn.textContent = isCorrect ? '✓ 正确，下一题 →' : '✗ 已加入错题本，下一题 →';
+
+    // 如果答错，加入错题本
+    if (!isCorrect) {
+      this.addToMistakes(q, selectedAnswer);
+    }
+  },
+
+  // 下一题
+  nextQuestion() {
+    this.state.quiz.currentIndex++;
+    this.renderQuizQuestion();
+  },
+
+  // 完成答题
+  finishQuiz() {
+    this.stopQuizTimer();
+    
+    const { questions, userAnswers, timeSpent, quizType, mode } = this.state.quiz;
+    
+    let correctCount = 0;
+    let wrongDetails = [];
+    
+    userAnswers.forEach((ans, idx) => {
+      if (ans !== undefined) {
+        const selectedAnswer = String.fromCharCode(65 + ans);
+        const isCorrect = selectedAnswer === questions[idx].answer;
+        if (isCorrect) {
+          correctCount++;
+        } else {
+          wrongDetails.push({
+            question: questions[idx],
+            userAnswer: selectedAnswer,
+            correctAnswer: questions[idx].answer
+          });
+        }
+      }
+    });
+
+    const score = Math.round(correctCount / questions.length * 100);
+    const wrongCount = questions.length - correctCount;
+    const mins = Math.floor(timeSpent / 60);
+    const secs = timeSpent % 60;
+
+    // 更新进度统计
+    this.updatePracticeStats(correctCount, questions.length, timeSpent);
+    
+    // 更新章节进度（如果是章节练习）
+    if (quizType === 'chapter' && this.state.currentChapter) {
+      this.updateChapterProgress(this.state.currentChapter, correctCount, questions.length);
+    }
+
+    const container = document.getElementById('main-content');
+    
+    // 分析建议
+    let suggestionHtml = '';
+    if (score >= 90) {
+      suggestionHtml = '<div class="suggestion excellent">🎉 太棒了！掌握得很好，继续保持！</div>';
+    } else if (score >= 70) {
+      suggestionHtml = '<div class="suggestion good">👍 不错！还有提升空间，加油！</div>';
+    } else if (score >= 50) {
+      suggestionHtml = '<div class="suggestion average">📚 还需努力，建议复习相关知识点后再练习！</div>';
+    } else {
+      suggestionHtml = '<div class="suggestion poor">💪 不要气馁，先复习考点，再回来练习！</div>';
+    }
+
+    // 错题回顾
+    let wrongReviewHtml = '';
+    if (wrongDetails.length > 0) {
+      wrongReviewHtml = `
+        <div class="wrong-review">
+          <div class="wrong-review-title">❌ 错题回顾（${wrongDetails.length}道）</div>
+          ${wrongDetails.slice(0, 3).map((w, i) => `
+            <div class="wrong-review-item">
+              <div class="wrong-q">${i+1}. ${w.question.question}</div>
+              <div class="wrong-a">
+                <span class="user-wrong">你的答案：${w.userAnswer}</span>
+                <span class="correct-ans">正确答案：${w.correctAnswer}</span>
+              </div>
+            </div>
+          `).join('')}
+          ${wrongDetails.length > 3 ? `<div class="wrong-more">还有 ${wrongDetails.length - 3} 道错题，请查看错题本</div>` : ''}
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      <div class="quiz-result fade-in">
+        <div class="score ${score >= 80 ? 'score-good' : score >= 60 ? 'score-medium' : 'score-poor'}">${score}分</div>
+        <div class="score-label">答题用时 ${mins}分${secs}秒</div>
+        ${suggestionHtml}
+
+        <div class="result-stats">
+          <div class="result-stat correct-stat">
+            <div class="num">${correctCount}</div>
+            <div class="label">正确</div>
+          </div>
+          <div class="result-stat wrong-stat">
+            <div class="num">${wrongCount}</div>
+            <div class="label">错误</div>
+          </div>
+          <div class="result-stat">
+            <div class="num">${questions.length}</div>
+            <div class="label">总题数</div>
+          </div>
+        </div>
+
+        ${wrongReviewHtml}
+
+        <div class="quiz-actions" style="justify-content:center;margin-top:24px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="app.navigate('home')">🏠 返回首页</button>
+          <button class="btn btn-outline" onclick="app.navigate('mistakes')">📝 查看错题本</button>
+          ${wrongCount > 0 ? `<button class="btn btn-danger" onclick="app.practiceWrongAgain()">🔁 重做错题 + 举一反三</button>` : ''}
+          <button class="btn btn-success" onclick="app.startRandomQuiz()">🔄 再练一组</button>
+        </div>
+        
+        ${wrongCount > 0 ? `
+          <div class="juyifan-section fade-in" style="margin-top:24px;background:#FFF8E1;padding:20px;border-radius:var(--radius);border-left:4px solid var(--warning)">
+            <div class="juyifan-title" style="font-size:16px;font-weight:700;margin-bottom:12px;color:var(--warning)">💡 错题举一反三</div>
+            <div style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">
+              已为你找到相似知识点题目，建议针对性练习：
+            </div>
+            <button class="btn btn-warning" onclick="app.practiceWrongAgain()">🎯 开始举一反三练习</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    this.state.quiz = { questions: [], currentIndex: 0, answers: [], userAnswers: [], timer: null };
+  },
+
+  // ============================================================
+  // V2.1 新功能：错题重做 + 举一反三
+  // ============================================================
+  
+  // 重做错题
+  practiceWrongAgain() {
+    const wrongIds = this.state.quiz.userAnswers
+      .map((ans, idx) => {
+        if (ans !== undefined && String.fromCharCode(65 + ans) !== this.state.quiz.questions[idx].answer) {
+          return this.state.quiz.questions[idx].id;
+        }
+        return null;
+      })
+      .filter(id => id !== null);
+    
+    if (wrongIds.length === 0) {
+      alert('太棒了！没有错题需要重做！');
+      return;
+    }
+    
+    // 找到错题和相似题
+    const wrongQuestions = QUIZ_DATA.questions.filter(q => wrongIds.includes(q.id));
+    const similarQuestions = this.getSimilarQuestions(wrongQuestions);
+    
+    // 组合错题 + 相似题
+    const practiceQuestions = [...wrongQuestions, ...similarQuestions].slice(0, 10);
+    
+    this.initQuiz(practiceQuestions, '错题重做 + 举一反三', 'review');
+  },
+
+  // 获取相似题（同一知识点）
+  getSimilarQuestions(wrongQuestions) {
+    const knowledgePoints = new Set(wrongQuestions.map(q => q.knowledgePoint));
+    const wrongIds = new Set(wrongQuestions.map(q => q.id));
+    
+    // 找到相同知识点的其他题目
+    const similar = QUIZ_DATA.questions.filter(q => 
+      knowledgePoints.has(q.knowledgePoint) && 
+      !wrongIds.has(q.id)
+    );
+    
+    // 随机选 5 道相似题
+    return similar.sort(() => Math.random() - 0.5).slice(0, 5);
+  },
+
+  // 薄弱点分析
+  getWeakPoints() {
+    const p = this.state.progress;
+    const weakPoints = [];
+    
+    // 分析每个知识点的正确率
+    const kpStats = {};
+    QUIZ_DATA.questions.forEach(q => {
+      if (!kpStats[q.knowledgePoint]) {
+        kpStats[q.knowledgePoint] = { total: 0, correct: 0, chapterId: q.chapterId };
+      }
+    });
+    
+    // 从错题本统计
+    this.state.mistakeBook.forEach(m => {
+      const kp = m.question.knowledgePoint;
+      if (kpStats[kp]) {
+        kpStats[kp].total++;
+      }
+    });
+    
+    // 从章节进度统计
+    Object.entries(p.chapters).forEach(([chapterId, data]) => {
+      const accuracy = data.totalQuestions > 0 ? data.correctQuestions / data.totalQuestions : 1;
+      if (accuracy < 0.7 && data.totalQuestions >= 3) {
+        // 找到章节对应的知识点
+        const chapter = this.getChapterById(chapterId);
+        if (chapter) {
+          weakPoints.push({
+            type: 'chapter',
+            name: chapter.name,
+            accuracy: Math.round(accuracy * 100),
+            totalQuestions: data.totalQuestions
+          });
+        }
+      }
+    });
+    
+    // 按正确率排序，最低的在前
+    weakPoints.sort((a, b) => a.accuracy - b.accuracy);
+    
+    return weakPoints.slice(0, 5); // 返回前 5 个薄弱点
+  },
+
+  // 根据薄弱点推荐练习
+  recommendPractice() {
+    const weakPoints = this.getWeakPoints();
+    
+    if (weakPoints.length === 0) {
+      alert('太棒了！目前没有明显薄弱点，来做一套综合练习吧！');
+      this.startRandomQuiz();
+      return;
+    }
+    
+    // 从薄弱章节选题
+    const weakChapterIds = weakPoints
+      .filter(wp => wp.type === 'chapter')
+      .map(wp => wp.name);
+    
+    let questions = [];
+    weakChapterIds.forEach(chapterName => {
+      const chapter = Object.values(TEXTBOOK_DATA.grades)
+        .flatMap(g => g.semesters)
+        .flatMap(s => s.chapters)
+        .find(c => c.name === chapterName);
+      
+      if (chapter) {
+        const chapterQuestions = QUIZ_DATA.questions.filter(q => q.chapterId === chapter.id);
+        questions.push(...chapterQuestions.slice(0, 3)); // 每章选 3 题
+      }
+    });
+    
+    if (questions.length === 0) {
+      alert('薄弱点暂无对应题目，来做随机练习吧！');
+      this.startRandomQuiz();
+      return;
+    }
+    
+    // 随机选 10 道
+    questions = questions.sort(() => Math.random() - 0.5).slice(0, 10);
+    this.initQuiz(questions, '薄弱点专项', 'weakpoint');
+  },
+
+  // 根据 ID 获取章节
+  getChapterById(chapterId) {
+    for (const g of TEXTBOOK_DATA.grades) {
+      for (const s of g.semesters) {
+        const c = s.chapters.find(ch => ch.id === chapterId);
+        if (c) return c;
+      }
+    }
+    return null;
+  },
+
+  // 知识点专项练习
+  practiceByKnowledgePoint(kp) {
+    const questions = QUIZ_DATA.questions
+      .filter(q => q.knowledgePoint === kp)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 10);
+    
+    if (questions.length === 0) {
+      alert('该知识点暂无题目');
+      return;
+    }
+    
+    this.initQuiz(questions, `知识点专项：${kp}`, 'knowledge');
+  },
+
+  // ============================================================
+  // 错题本
+  // ============================================================
+  renderMistakes(params = {}) {
+    const container = document.getElementById('main-content');
+    const mistakes = this.state.mistakeBook;
+
+    if (mistakes.length === 0) {
+      container.innerHTML = `
+        <div class="breadcrumb fade-in">
+          <span onclick="app.navigate('home')">首页</span>
+          <span class="sep">/</span>
+          <span class="current">错题本</span>
+        </div>
+        <div class="mistake-book-empty fade-in">
+          <div class="empty-icon">🎉</div>
+          <p>太棒了！还没有错题</p>
+          <p style="margin-top:8px">去刷题巩固一下吧～</p>
+          <button class="btn btn-primary mt-16" onclick="app.startRandomQuiz()">开始刷题</button>
+        </div>
+      `;
+      return;
+    }
+
+    // 获取所有章节用于筛选
+    const chapterOptions = ['<option value="">全部章节</option>'];
+    const chapterMap = new Map();
+
+    TEXTBOOK_DATA.grades.forEach(g => {
+      g.semesters.forEach(s => {
+        s.chapters.forEach(c => {
+          chapterMap.set(c.id, c.name);
+          chapterOptions.push(`<option value="${c.id}">${c.name}</option>`);
+        });
+      });
+    });
+
+    container.innerHTML = `
+      <div class="breadcrumb fade-in">
+        <span onclick="app.navigate('home')">首页</span>
+        <span class="sep">/</span>
+        <span class="current">错题本</span>
+      </div>
+
+      <div class="filter-bar fade-in">
+        <select id="mistakeFilter" onchange="app.filterMistakes()">
+          ${chapterOptions.join('')}
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="app.showImportDialog()">📥 导入</button>
+        <button class="btn btn-outline btn-sm" onclick="app.exportData()">📤 导出</button>
+        <button class="btn btn-outline btn-sm" onclick="app.clearMistakes()">🗑️ 清空</button>
+      </div>
+
+      <div id="mistakeList">
+        ${this.renderMistakeList(mistakes)}
+      </div>
+    `;
+  },
+
+  // 渲染错题列表
+  renderMistakeList(mistakes) {
+    if (mistakes.length === 0) {
+      return `
+        <div class="empty-state fade-in">
+          <div class="empty-icon">📭</div>
+          <p>暂无错题</p>
+        </div>
+      `;
+    }
+
+    return mistakes.map((m, idx) => {
+      const chapterName = this.getChapterName(m.chapterId) || '未知章节';
+      const date = new Date(m.date).toLocaleDateString('zh-CN');
+
+      return `
+        <div class="mistake-entry fade-in">
+          <div class="mistake-q">${m.question.question}</div>
+          <div class="mistake-info">
+            <span>📚 ${chapterName}</span>
+            <span>📅 ${date}</span>
+            <span class="wrong-ans">你的答案：${m.wrongAnswer}</span>
+            <span class="right-ans">正确答案：${m.question.answer}</span>
+          </div>
+          <div class="mistake-actions">
+            <button class="btn btn-outline btn-sm" onclick="app.reviewMistake(${idx})">📖 查看解析</button>
+            <button class="btn btn-success btn-sm" onclick="app.removeMistake(${idx})">✓ 已掌握</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  // 筛选错题
+  filterMistakes() {
+    const chapterId = document.getElementById('mistakeFilter').value;
+    const mistakes = chapterId
+      ? this.state.mistakeBook.filter(m => m.chapterId === chapterId)
+      : this.state.mistakeBook;
+
+    document.getElementById('mistakeList').innerHTML = this.renderMistakeList(mistakes);
+  },
+
+  // 查看错题解析
+  reviewMistake(idx) {
+    const m = this.state.mistakeBook[idx];
+    alert(`📖 答案解析：\n\n${m.question.analysis}`);
+  },
+
+  // 移除错题（已掌握）
+  removeMistake(idx) {
+    this.state.mistakeBook.splice(idx, 1);
+    this.saveMistakes();
+    this.renderMistakes();
+  },
+
+  // 清空错题本
+  clearMistakes() {
+    if (confirm('确定要清空所有错题吗？此操作不可恢复！')) {
+      this.state.mistakeBook = [];
+      this.saveMistakes();
+      this.renderMistakes();
+    }
+  },
+
+  // 加入错题本
+  addToMistakes(question, wrongAnswer) {
+    // 检查是否已存在
+    const exists = this.state.mistakeBook.find(m => m.question.id === question.id);
+    if (exists) return; // 已存在不重复添加
+
+    this.state.mistakeBook.push({
+      question,
+      wrongAnswer,
+      chapterId: question.chapterId,
+      date: Date.now()
+    });
+    this.saveMistakes();
+  },
+
+  // 保存错题本
+  saveMistakes() {
+    localStorage.setItem('sujiaoban_mistakes', JSON.stringify(this.state.mistakeBook));
+  },
+
+  // 获取章节名称
+  getChapterName(chapterId) {
+    for (const g of TEXTBOOK_DATA.grades) {
+      for (const s of g.semesters) {
+        const c = s.chapters.find(ch => ch.id === chapterId);
+        if (c) return c.name;
+      }
+    }
+    return null;
+  },
+
+  // 滚动监听（回到顶部按钮）
+  setupScrollListener() {
+    const btn = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        btn.classList.add('show');
+      } else {
+        btn.classList.remove('show');
+      }
+    });
+  },
+
+  // ============================================================
+  // V2.0 新功能：学习进度页面
+  // ============================================================
+  renderProgress(params = {}) {
+    const container = document.getElementById('main-content');
+    const p = this.state.progress;
+    const stats = p.stats;
+
+    // 计算总掌握率
+    const totalQ = Object.values(p.chapters).reduce((sum, c) => sum + c.totalQuestions, 0);
+    const correctQ = Object.values(p.chapters).reduce((sum, c) => sum + c.correctQuestions, 0);
+    const mastery = totalQ > 0 ? Math.round(correctQ / totalQ * 100) : 0;
+
+    // 薄弱点分析
+    const weakPoints = this.getWeakPoints();
+    const weakPointsHtml = weakPoints.length > 0 ? `
+      <div class="weak-points-list">
+        ${weakPoints.map((wp, idx) => `
+          <div class="weak-point-item">
+            <div class="weak-point-info">
+              <div class="weak-point-name">${idx + 1}. ${wp.name}</div>
+              <div class="weak-point-stats">正确率：${wp.accuracy}% · 已练${wp.totalQuestions}题</div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="app.practiceByChapterName('${wp.name}')">💪 专项突破</button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="quiz-actions mt-16">
+        <button class="btn btn-primary" onclick="app.recommendPractice()">🎯 智能推荐练习</button>
+      </div>
+    ` : `
+      <div class="empty-state" style="padding:20px">
+        <div class="empty-icon">🎉</div>
+        <p>太棒了！目前没有明显薄弱点</p>
+        <button class="btn btn-success mt-16" onclick="app.startRandomQuiz()">来做综合练习</button>
+      </div>
+    `;
+
+    // 成就列表
+    const achievementsHtml = ACHIEVEMENTS.map(ach => {
+      const unlocked = p.achievements.includes(ach.id);
+      return `
+        <div class="achievement-card ${unlocked ? 'unlocked' : 'locked'}">
+          <div class="achievement-icon">${unlocked ? ach.icon : '🔒'}</div>
+          <div class="achievement-name">${ach.name}</div>
+          <div class="achievement-desc">${ach.desc}</div>
+        </div>
+      `;
+    }).join('');
+
+    // 章节进度
+    let chaptersProgressHtml = '';
+    for (const g of TEXTBOOK_DATA.grades) {
+      g.semesters.forEach(s => {
+        s.chapters.forEach(c => {
+          const cp = p.chapters[c.id];
+          const chapterMastery = cp && cp.totalQuestions > 0 
+            ? Math.round(cp.correctQuestions / cp.totalQuestions * 100) 
+            : 0;
+          const practiced = cp && cp.totalQuestions > 0;
+          
+          chaptersProgressHtml += `
+            <div class="chapter-progress-item">
+              <div class="chapter-progress-info">
+                <div class="chapter-progress-name">${c.name}</div>
+                <div class="chapter-progress-stats">
+                  ${practiced ? `${cp.correctQuestions}/${cp.totalQuestions} 正确` : '未练习'}
+                </div>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width:${chapterMastery}%;background:${chapterMastery >= 80 ? 'var(--success)' : chapterMastery >= 60 ? 'var(--warning)' : 'var(--primary)'}"></div>
+              </div>
+              <div class="chapter-progress-percent">${chapterMastery}%</div>
+            </div>
+          `;
+        });
+      });
+    }
+
+    container.innerHTML = `
+      <div class="breadcrumb fade-in">
+        <span onclick="app.navigate('home')">首页</span>
+        <span class="sep">/</span>
+        <span class="current">学习进度</span>
+      </div>
+
+      <!-- 总体统计 -->
+      <div class="progress-overview fade-in">
+        <div class="stat-card-large">
+          <div class="stat-icon">📊</div>
+          <div class="stat-number">${mastery}%</div>
+          <div class="stat-label">总体掌握率</div>
+        </div>
+        <div class="stat-card-large">
+          <div class="stat-icon">📚</div>
+          <div class="stat-number">${stats.totalPractices}</div>
+          <div class="stat-label">练习次数</div>
+        </div>
+        <div class="stat-card-large">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-number">${Math.floor(stats.totalTimeSpent/60)}分</div>
+          <div class="stat-label">学习时长</div>
+        </div>
+        <div class="stat-card-large">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-number">${stats.streak}天</div>
+          <div class="stat-label">连续练习</div>
+        </div>
+      </div>
+
+      <!-- V2.1 薄弱点分析 -->
+      <h3 class="section-title fade-in">🎯 薄弱点分析</h3>
+      <div class="weak-points-section fade-in">
+        ${weakPointsHtml}
+      </div>
+
+      <!-- 成就系统 -->
+      <h3 class="section-title fade-in">🏆 我的成就</h3>
+      <div class="achievements-grid fade-in">
+        ${achievementsHtml}
+      </div>
+
+      <!-- 章节进度 -->
+      <h3 class="section-title fade-in">📖 章节进度</h3>
+      <div class="chapters-progress-list fade-in">
+        ${chaptersProgressHtml}
+      </div>
+    `;
+  },
+
+  // 按章节名称练习
+  practiceByChapterName(chapterName) {
+    const chapter = Object.values(TEXTBOOK_DATA.grades)
+      .flatMap(g => g.semesters)
+      .flatMap(s => s.chapters)
+      .find(c => c.name === chapterName);
+    
+    if (!chapter) {
+      alert('未找到对应章节');
+      return;
+    }
+    
+    const questions = QUIZ_DATA.questions
+      .filter(q => q.chapterId === chapter.id)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 10);
+    
+    if (questions.length === 0) {
+      alert('该章节暂无题目');
+      return;
+    }
+    
+    this.state.currentChapter = chapter.id;
+    this.initQuiz(questions, `薄弱点突破：${chapterName}`, 'chapter');
+  },
+
+  // ============================================================
+  // P0 优化：关于/帮助页面
+  // ============================================================
+  renderAbout(params = {}) {
+    const container = document.getElementById('main-content');
+    
+    container.innerHTML = `
+      <div class="breadcrumb fade-in">
+        <span onclick="app.navigate('home')">首页</span>
+        <span class="sep">/</span>
+        <span class="current">关于</span>
+      </div>
+
+      <div class="about-page fade-in">
+        <div class="about-header">
+          <div class="about-icon">📚</div>
+          <h1>苏教版初中数学复习工具</h1>
+          <div class="about-version">V3.0</div>
+        </div>
+
+        <div class="about-section">
+          <h3>📖 应用介绍</h3>
+          <p>专为苏教版初中生打造的课外复习工具，集<strong>考点速查、公式速记、智能刷题、错题本、学习进度</strong>于一体的智能复习平台。</p>
+        </div>
+
+        <div class="about-section">
+          <h3>✨ 核心功能</h3>
+          <ul class="feature-list">
+            <li>📚 <strong>考点速查</strong> - 七~九年级全册考点、易错点</li>
+            <li>📐 <strong>公式速记</strong> - 8 大分类公式库，含口诀</li>
+            <li>✏️ <strong>智能刷题</strong> - 51+ 道精选题，难度分级</li>
+            <li>📝 <strong>错题本</strong> - 自动收录，支持导出备份</li>
+            <li>📊 <strong>学习进度</strong> - 掌握程度可视化，成就系统</li>
+            <li>🎯 <strong>举一反三</strong> - 薄弱点分析，智能推荐</li>
+
+          </ul>
+        </div>
+
+        <div class="about-section">
+          <h3>🔒 隐私说明</h3>
+          <div class="privacy-notice">
+            <p>✅ <strong>无登录</strong> - 不需要注册账号</p>
+            <p>✅ <strong>无广告</strong> - 纯净学习体验</p>
+            <p>✅ <strong>无上传</strong> - 所有数据存储在本地浏览器</p>
+            <p>⚠️ <strong>注意</strong> - 清除浏览器缓存会丢失数据，建议定期导出备份</p>
+          </div>
+        </div>
+
+        <div class="about-section">
+          <h3>💾 数据管理</h3>
+          <div class="data-actions">
+            <button class="btn btn-primary" onclick="app.exportData()">📤 导出数据</button>
+            <button class="btn btn-outline" onclick="app.showImportDialog()">📥 导入数据</button>
+          </div>
+          <p class="data-tip">建议每周导出一次备份，避免数据丢失</p>
+        </div>
+
+        <div class="about-section">
+          <h3>📱 使用建议</h3>
+          <ol class="usage-tips">
+            <li><strong>日常学习：</strong>学完一章 → 考点速查 → 章节练习</li>
+            <li><strong>错题整理：</strong>自动收录 → 定期重做 → 举一反三</li>
+            <li><strong>考前复习：</strong>考点速查 → 公式速记 → 错题重做</li>
+            <li><strong>数据备份：</strong>每周导出一次，保存到云盘</li>
+          </ol>
+        </div>
+
+        <div class="about-footer">
+          <p>© 2026 苏教版初中数学复习工具 · 纯公益项目</p>
+          <p>如有问题或建议，欢迎反馈</p>
+        </div>
+      </div>
+    `;
+  },
+
+  // ============================================================
+  // P0 优化：数据导出/导入功能
+  // ============================================================
+  
+  // 导出数据
+  exportData() {
+    const exportData = {
+      version: 'V3.0',
+      exportDate: new Date().toISOString(),
+      mistakeBook: this.state.mistakeBook,
+      progress: this.state.progress,
+      note: '苏教版初中数学复习工具 - 学习数据备份'
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `数学复习数据备份_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    alert('✅ 数据导出成功！\n\n建议将文件保存到云盘或发送到邮箱，避免丢失。');
+  },
+
+  // 导入数据
+  importData(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (!data.version || !data.mistakeBook) {
+          throw new Error('文件格式不正确');
+        }
+        
+        // 确认导入
+        if (confirm(`检测到备份文件：\n- 导出时间：${data.exportDate || '未知'}\n- 错题数量：${data.mistakeBook.length}道\n- 练习次数：${data.progress?.stats?.totalPractices || 0}次\n\n确定要导入吗？当前数据将被覆盖！`)) {
+          this.state.mistakeBook = data.mistakeBook;
+          if (data.progress) {
+            this.state.progress = data.progress;
+          }
+          this.saveMistakes();
+          this.saveProgress();
+          alert('✅ 数据导入成功！');
+          this.renderHome();
+        }
+      } catch (err) {
+        alert('❌ 导入失败：' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  },
+
+  // 显示导入对话框
+  showImportDialog() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        this.importData(file);
+      }
+    };
+    input.click();
+  },
+
+  // V2.0 增强：答题计时器
+  // ============================================================
+  startQuizTimer() {
+    this.state.quiz.timeSpent = 0;
+    this.state.quiz.timer = setInterval(() => {
+      this.state.quiz.timeSpent++;
+      // 更新 UI 显示用时
+      const timerEl = document.getElementById('quizTimer');
+      if (timerEl) {
+        const mins = Math.floor(this.state.quiz.timeSpent / 60);
+        const secs = this.state.quiz.timeSpent % 60;
+        timerEl.textContent = `⏱️ ${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+      }
+    }, 1000);
+  },
+
+  stopQuizTimer() {
+    if (this.state.quiz.timer) {
+      clearInterval(this.state.quiz.timer);
+      this.state.quiz.timer = null;
+    }
+  },
+
+  stopQuizTimer() {
+    if (this.state.quiz.timer) {
+      clearInterval(this.state.quiz.timer);
+      this.state.quiz.timer = null;
+    }
+  }
+};
+
+// 启动应用
+app.init();
+
+// ============================================================
+// PWA Service Worker 注册
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(registration => {
+        console.log('✅ Service Worker 注册成功:', registration.scope);
+      })
+      .catch(error => {
+        console.log('❌ Service Worker 注册失败:', error);
+      });
+  });
+}
+</script>
+
+</body>
+</html>

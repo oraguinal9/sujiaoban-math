@@ -1,0 +1,26 @@
+{
+  "name": "苏教版初中数学复习工具",
+  "short_name": "数学复习",
+  "description": "专为苏教版初中生打造的课外复习工具 - 考点速查、公式速记、智能刷题、错题本",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#F7F8FA",
+  "theme_color": "#4A90D9",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "zh-CN"
+}
