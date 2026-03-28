@@ -924,7 +924,6 @@ const TEXTBOOK_DATA = {
                 }
               ]
             }
-            }
           ]
         }
       ]
